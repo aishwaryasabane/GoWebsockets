@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"github.com/gorilla/websocket"
 	"github.com/satori/uuid"
 )
@@ -21,6 +22,7 @@ var upgrader = websocket.Upgrader{
 // The Pub-Sub system maintains a list of subscribers (clients)
 type PubSub struct {
 	Clients []Client
+	mu      sync.Mutex
 }
 
 // Every client maintains a unique ID and a websocket connection with the server  
@@ -127,6 +129,8 @@ func main() {
 // Returns:
 // *PubSub - A pointer to the updated PubSub instance after adding the client.
 func (ps *PubSub) AddClient(client Client) *PubSub {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
 	ps.Clients = append(ps.Clients, client)
 	fmt.Println("Adding new client to the list", client.Id, len(ps.Clients))
 	payload := []byte("Hello Client ID" + client.Id)
@@ -140,6 +144,8 @@ func (ps *PubSub) AddClient(client Client) *PubSub {
 // Returns:
 // *PubSub - A pointer to the updated PubSub instance after removing the client.
 func (ps *PubSub) RemoveClient(client Client) *PubSub {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
 	for i, cl := range ps.Clients {
 		if cl.Id == client.Id {
 			ps.Clients = append(ps.Clients[:i], ps.Clients[i+1:]...)
@@ -152,6 +158,8 @@ func (ps *PubSub) RemoveClient(client Client) *PubSub {
 // Parameters:
 // message: []byte - The message to be broadcasted to all clients.
 func (ps *PubSub) broadcast(message []byte) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
 	for _, client := range ps.Clients {
 		err := client.Connection.WriteMessage(1, message)
 		if err != nil {
