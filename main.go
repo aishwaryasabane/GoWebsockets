@@ -36,16 +36,21 @@ type Message struct {
 	Message json.RawMessage `json:"message"`
 }
 
-// Function to generate a unique ID for every client
+// Function to generate a unique ID for every client.
+// Returns:
+// string - A unique identifier string.
 func autoId() string {
 	return uuid.Must(uuid.NewV4(), nil).String()
 }
 
 var ps = &PubSub{}
 
-/* This function sets up a basic HTTP server that listens on port 8080
-and upgrades incoming WebSocket connections. It handles WebSocket 
-connection requests and upgrades them using the Upgrader method */
+// Function to set up a basic HTTP server that listens on port 8080
+// and upgrade incoming WebSocket connections. It handles WebSocket 
+// connection requests and upgrades them using the Upgrader method.
+// Parameters:
+// w: http.ResponseWriter - The response writer to write HTTP responses.
+// r: *http.Request - The incoming HTTP request.
 func webSocketHandler(w http.ResponseWriter, r *http.Request) {
 	//Upgrade this connection to a WebSocket connection
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -93,24 +98,34 @@ func webSocketHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Basic function to setup and handle the HTTP routes for the server
+// Function to configure and handle the HTTP routes for the server.
+// It sets up two routes: one for serving static files and another for handling
+// WebSocket connections. The static route serves files from the "static" directory
+// and the WebSocket route uses the webSocketHandler function to handle incoming
+// WebSocket connections. 
 func setupRoutes() {
+	// Serve static files from the static directory
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static")
 	})
+	// Handle WebSocket connections using the webSocketHandler function
 	http.HandleFunc("/ws", webSocketHandler)
 }
 
 func main() {
 	fmt.Println("This is the main function of the Server")
 	setupRoutes()
-  // The server will listen on port 8080
+        // The server will listen on port 8080
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
 // Function to add a new client to the list
+// Parameters:
+// client: Client - The client to be added to the list.
+// Returns:
+// *PubSub - A pointer to the updated PubSub instance after adding the client.
 func (ps *PubSub) AddClient(client Client) *PubSub {
 	ps.Clients = append(ps.Clients, client)
 	fmt.Println("Adding new client to the list", client.Id, len(ps.Clients))
@@ -120,6 +135,10 @@ func (ps *PubSub) AddClient(client Client) *PubSub {
 }
 
 // Function to remove a client from the list
+// Parameters:
+// client: Client - The client to be removed from the list.
+// Returns:
+// *PubSub - A pointer to the updated PubSub instance after removing the client.
 func (ps *PubSub) RemoveClient(client Client) *PubSub {
 	for i, cl := range ps.Clients {
 		if cl.Id == client.Id {
@@ -129,7 +148,9 @@ func (ps *PubSub) RemoveClient(client Client) *PubSub {
 	return ps
 }
 
-// Function to send a message to all the clients in the Pub-Sub system when any client sends a message
+// Function to send a message to all the clients in the Pub-Sub system when any client sends a message.
+// Parameters:
+// message: []byte - The message to be broadcasted to all clients.
 func (ps *PubSub) broadcast(message []byte) {
 	for _, client := range ps.Clients {
 		err := client.Connection.WriteMessage(1, message)
@@ -140,16 +161,16 @@ func (ps *PubSub) broadcast(message []byte) {
 	}
 }
 
-// Function to handle the messages received
+// Function to handle the messages received.
+// Parameters:
+// client: Client - The client from which the message was received.
+// messageType: int - The type of the received message (e.g., TextMessage, BinaryMessage).
+// payload: []byte - The payload of the received message.
+// Returns:
+// *PubSub - A pointer to the PubSub instance after handling the received message.
 func (ps *PubSub) HandleRecvdMessage(client Client, messageType int, payload []byte) *PubSub {
-	/* m := Message{}
-	err := json.Unmarshal(payload, &m)
-	if err != nil {
-		fmt.Println("This is not a correct message payload")
-		return ps
-	} */
 	fmt.Printf("Client message payload: %s", payload)
-  // Just broadcast a message to all the subscribers (clients) whenever any client sends a message
+        // Just broadcast a message to all the subscribers (clients) whenever any client sends a message
 	broadcastmsg := []byte("This is a Broadcast message sent by the Server! HELLO Clients!")
 	ps.broadcast(broadcastmsg)
 	return ps
